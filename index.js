@@ -2,12 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const { Configuration, OpenAIApi } = require("openai");
+const OpenAI = require('openai');
 
-const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
+const openai = new OpenAI(process.env.OPEN_AI_KEY);
 
 const app = express();
 app.use(bodyParser.json());
@@ -25,7 +22,11 @@ app.post('/facebook', (req, res) => {
 
       if (webhookEvent.message) {
         console.log('Message received:', webhookEvent.message);
-        await handleMessage(senderId, webhookEvent.message);
+        try {
+          await handleMessage(senderId, webhookEvent.message);
+        } catch (error) {
+          console.error('Error handling the message:', error);
+        }
       }
     });
     res.status(200).send('EVENT_RECEIVED');
@@ -54,37 +55,49 @@ app.get('/facebook', (req, res) => {
   }
 });
 
+app.get('/aitest', async (req, res) => {
+  try {
+    const response = await getGpt3Response("The assistant should answer the following question: What's the weather like today?");
+    console.log('OpenAI response:', response);
+    res.send(response);
+  } catch (error) {
+    console.error('Error with OpenAI:', error);
+    res.status(500).send('Error with OpenAI');
+  }
+});
+
 async function handleMessage(senderId, receivedMessage) {
   let messageText = receivedMessage.text;
 
   if (messageText) {
     console.log('Processing message:', messageText);
-    try {
-      const response = await getGpt3Response("The assistant should answer the following question: " + messageText);
-      console.log('OpenAI response:', response);
-      await callSendAPI(senderId, response);
-    } catch (err) {
-      console.error('Error with OpenAI:', err);
-    }
+    const response = await getGpt3Response("The assistant should answer the following question: " + messageText);
+    console.log('OpenAI response:', response);
+    await callSendAPI(senderId, response);
   }
 }
 
 async function getGpt3Response(message) {
-  const gptResponse = await openai.createChatCompletion({
-    model: "text-davinci-002", // Update the model as per your needs
-    messages: [
-      {
-        role: "system",
-        content: "You are a helpful assistant.",
-      },
-      {
-        role: "user",
-        content: message,
-      },
-    ],
-  });
+  try {
+    const gptResponse = await openai.ChatCompletion.create({
+      model: "text-davinci-002",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant.",
+        },
+        {
+          role: "user",
+          content: message,
+        },
+      ],
+    });
 
-  return gptResponse.data['choices'][0]['message']['content'];
+    return gptResponse.data['choices'][0]['message']['content'];
+  } catch (error) {
+    console.error('Error calling OpenAI API:', error);
+    throw error;
+  }
 }
 
 async function callSendAPI(senderId, response) {

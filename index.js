@@ -82,7 +82,7 @@ const getGpt4Response = async (prompt) => {
                 ]
             }
         );
-
+console.log(response);
         let content = response.data.choices[0].message.content;
 
         return {

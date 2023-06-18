@@ -2,6 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
+const { Configuration, OpenAIApi } = require("openai");
+
+const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
 
 const app = express();
 app.use(bodyParser.json());
@@ -53,7 +59,7 @@ function handleMessage(senderId, receivedMessage) {
 
   if (messageText) {
     console.log('Processing message:', messageText);
-    getGpt4Response("The assistant should answer the following question: " + messageText)
+    getGpt4Response(messageText)
       .then((response) => {
         console.log('OpenAI response:', response);
         callSendAPI(senderId, response);
@@ -64,7 +70,34 @@ function handleMessage(senderId, receivedMessage) {
   }
 }
 
-function getGpt4Response(message) {
+const getGpt4Response = async (prompt) => {
+
+    try {
+        const response = await openai.createChatCompletion(
+            {
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    { "role": "system", "content": "You are a helpful assistant." },
+                    { "role": "user", "content": prompt }
+                ]
+            }
+        );
+
+        let content = response.data.choices[0].message.content;
+
+        return {
+            status: 1,
+            response: content
+        };
+    } catch (error) {
+        return {
+            status: 0,
+            response: ''
+        };
+    }
+};
+
+function getGpt4ResponseOLD(message) {
   return new Promise((resolve, reject) => {
     // Placeholder for GPT-4 API endpoint, as of now GPT-4 is not available
     axios.post('https://api.openai.com/v1/chat/completions', {

@@ -2,12 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const { Configuration, OpenAIApi } = require("openai");
+const OpenAI = require('openai');
 
-const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
+const openai = new OpenAI(process.env.OPEN_AI_KEY);
 
 const app = express();
 app.use(bodyParser.json());
@@ -18,14 +15,14 @@ app.post('/facebook', (req, res) => {
   console.log('Webhook POST request received.');
 
   if (body.object === 'page') {
-    body.entry.forEach((entry) => {
+    body.entry.forEach(async (entry) => {
       let webhookEvent = entry.messaging[0];
       let senderId = webhookEvent.sender.id;
       console.log('Webhook event received from sender ID:', senderId);
 
       if (webhookEvent.message) {
         console.log('Message received:', webhookEvent.message);
-        handleMessage(senderId, webhookEvent.message);
+        await handleMessage(senderId, webhookEvent.message);
       }
     });
     res.status(200).send('EVENT_RECEIVED');
@@ -54,71 +51,40 @@ app.get('/facebook', (req, res) => {
   }
 });
 
-function handleMessage(senderId, receivedMessage) {
+async function handleMessage(senderId, receivedMessage) {
   let messageText = receivedMessage.text;
 
   if (messageText) {
     console.log('Processing message:', messageText);
-    getGpt4Response(messageText)
-      .then((response) => {
-        console.log('OpenAI response:', response);
-        callSendAPI(senderId, response);
-      })
-      .catch((err) => {
-        console.error('Error with OpenAI:', err);
-      });
+    try {
+      const response = await getGpt3Response("The assistant should answer the following question: " + messageText);
+      console.log('OpenAI response:', response);
+      await callSendAPI(senderId, response);
+    } catch (err) {
+      console.error('Error with OpenAI:', err);
+    }
   }
 }
 
-const getGpt4Response = async (prompt) => {
-
-    try {
-        const response = await openai.createChatCompletion(
-            {
-                model: 'gpt-3.5-turbo',
-                messages: [
-                    { "role": "system", "content": "You are a helpful assistant." },
-                    { "role": "user", "content": prompt }
-                ]
-            }
-        );
-console.log(response);
-        let content = response.data.choices[0].message.content;
-
-        return {
-            status: 1,
-            response: content
-        };
-    } catch (error) {
-        return {
-            status: 0,
-            response: ''
-        };
-    }
-};
-
-function getGpt4ResponseOLD(message) {
-  return new Promise((resolve, reject) => {
-    // Placeholder for GPT-4 API endpoint, as of now GPT-4 is not available
-    axios.post('https://api.openai.com/v1/chat/completions', {
-      prompt: message,
-      max_tokens: 60,
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.OPEN_AI_KEY}`,
-        'Content-Type': 'application/json',
+async function getGpt3Response(message) {
+  const gptResponse = await openai.ChatCompletion.create({
+    model: "text-davinci-002", // Update the model as per your needs
+    messages: [
+      {
+        role: "system",
+        content: "You are a helpful assistant.",
       },
-    })
-    .then((response) => {
-      resolve(response.data.choices[0].text.trim());
-    })
-    .catch((error) => {
-      reject(error);
-    });
+      {
+        role: "user",
+        content: message,
+      },
+    ],
   });
+
+  return gptResponse.data['choices'][0]['message']['content'];
 }
 
-function callSendAPI(senderId, response) {
+async function callSendAPI(senderId, response) {
   let requestBody = {
     recipient: {
       id: senderId,
@@ -128,13 +94,12 @@ function callSendAPI(senderId, response) {
     },
   };
 
-  axios.post(`https://graph.facebook.com/v13.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`, requestBody)
-    .then(() => {
-      console.log('Message sent to Facebook Messenger.');
-    })
-    .catch((err) => {
-      console.error('Unable to send message:' + err);
-    });
+  try {
+    await axios.post(`https://graph.facebook.com/v13.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`, requestBody);
+    console.log('Message sent to Facebook Messenger.');
+  } catch (err) {
+    console.error('Unable to send message:' + err);
+  }
 }
 
 app.listen(3000, () => console.log('webhook server is listening, port 3000'));

@@ -7,7 +7,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.post('/webhook', (req, res) => {
+app.post('/facebook', (req, res) => {
   let body = req.body;
   console.log('Webhook POST request received.');
 
@@ -28,7 +28,7 @@ app.post('/webhook', (req, res) => {
   }
 });
 
-app.get('/webhook', (req, res) => {
+app.get('/facebook', (req, res) => {
   let VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
   let mode = req.query['hub.mode'];
@@ -53,7 +53,7 @@ function handleMessage(senderId, receivedMessage) {
 
   if (messageText) {
     console.log('Processing message:', messageText);
-    getGpt3Response(messageText)
+    getGpt4Response("The assistant should answer the following question: " + messageText)
       .then((response) => {
         console.log('OpenAI response:', response);
         callSendAPI(senderId, response);
@@ -64,9 +64,10 @@ function handleMessage(senderId, receivedMessage) {
   }
 }
 
-function getGpt3Response(message) {
+function getGpt4Response(message) {
   return new Promise((resolve, reject) => {
-    axios.post('https://api.openai.com/v1/engines/davinci-codex/completions', {
+    // Placeholder for GPT-4 API endpoint, as of now GPT-4 is not available
+    axios.post('https://api.openai.com/v1/engines/gpt-4/completions', {
       prompt: message,
       max_tokens: 60,
     }, {
@@ -76,7 +77,7 @@ function getGpt3Response(message) {
       },
     })
     .then((response) => {
-      resolve(response.data.choices[0].text);
+      resolve(response.data.choices[0].text.trim());
     })
     .catch((error) => {
       reject(error);

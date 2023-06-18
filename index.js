@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const OpenAI = require('openai');
+const { OpenAI } = require('openai');
 
 const openai = new OpenAI(process.env.OPEN_AI_KEY);
 

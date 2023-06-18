@@ -2,9 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const OpenAI = require('openai');
+const { Configuration, OpenAIApi } = require("openai");
 
-const openai = new OpenAI(process.env.OPEN_AI_KEY);
+const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
 
 const app = express();
 app.use(bodyParser.json());

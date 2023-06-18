@@ -70,7 +70,7 @@ async function handleMessage(senderId, receivedMessage) {
 }
 
 async function getGpt3Response(message) {
-  const gptResponse = await openai.ChatCompletion.create({
+  const gptResponse = await openai.createChatCompletion({
     model: "text-davinci-002", // Update the model as per your needs
     messages: [
       {

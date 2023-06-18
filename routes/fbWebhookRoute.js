@@ -21,6 +21,7 @@ router.get('/', (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
+    console.log(JSON.stringify(req));
     let body = req.body;
     let requestType = body.object;
     let senderId = body.entry[0].messaging[0].sender.id;

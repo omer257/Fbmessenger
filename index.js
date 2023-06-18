@@ -67,7 +67,7 @@ function handleMessage(senderId, receivedMessage) {
 function getGpt4Response(message) {
   return new Promise((resolve, reject) => {
     // Placeholder for GPT-4 API endpoint, as of now GPT-4 is not available
-    axios.post('https://api.openai.com/v1/engines/gpt-4/completions', {
+    axios.post('https://api.openai.com/v1/chat/completions', {
       prompt: message,
       max_tokens: 60,
     }, {

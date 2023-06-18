@@ -2,9 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const { OpenAI } = require('openai');
+const { Configuration, OpenAIApi,OpenAI } = require("openai");
 
-const openai = new OpenAI(process.env.OPEN_AI_KEY);
+const AICode = process.env.OPEN_AI_KEY;
+
+const configuration = new Configuration({
+    apiKey: AICode,
+});
+const openai = new OpenAIApi(configuration);
 
 const app = express();
 app.use(bodyParser.json());
@@ -79,7 +84,8 @@ async function handleMessage(senderId, receivedMessage) {
 
 async function getGpt3Response(message) {
   try {
-    const gptResponse = await openai.ChatCompletion.create({
+    console.log(OpenAIApi);
+    const gptResponse = await openai.createChatCompletion({
       model: "text-davinci-002",
       messages: [
         {
@@ -92,7 +98,7 @@ async function getGpt3Response(message) {
         },
       ],
     });
-
+cons
     return gptResponse.data['choices'][0]['message']['content'];
   } catch (error) {
     console.error('Error calling OpenAI API:', error);

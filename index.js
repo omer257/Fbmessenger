@@ -1,107 +1,127 @@
-// Import required modules
+require('dotenv').config();
 const express = require('express');
-const axios = require('axios');
 const bodyParser = require('body-parser');
-const dotenv = require('dotenv');
-const openai = require('openai');
-dotenv.config();
+const axios = require('axios');
+const { Configuration, OpenAIApi,OpenAI } = require("openai");
 
-// Initialize Express app
+const AICode = process.env.OPEN_AI_KEY;
+
+const configuration = new Configuration({
+    apiKey: AICode,
+});
+const openai = new OpenAIApi(configuration);
+
 const app = express();
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// Setup OpenAI
-openai.apiKey = process.env.OPENAI_KEY;
+app.post('/facebook', (req, res) => {
+  let body = req.body;
+  console.log('Webhook POST request received.');
 
-// Facebook API URL
-const FACEBOOK_API_URL = 'https://graph.facebook.com/v13.0/me/messages';
+  if (body.object === 'page') {
+    body.entry.forEach(async (entry) => {
+      let webhookEvent = entry.messaging[0];
+      let senderId = webhookEvent.sender.id;
+      console.log('Webhook event received from sender ID:', senderId);
 
-// Engine and initial prompt
-const ENGINE = 'text-davinci-002'; // or other engine you'd like to use
-const INITIAL_PROMPT = 'Translate the following English text to French:';
+      if (webhookEvent.message) {
+        console.log('Message received:', webhookEvent.message);
+        try {
+          await handleMessage(senderId, webhookEvent.message);
+        } catch (error) {
+          console.error('Error handling the message:', error);
+        }
+      }
+    });
+    res.status(200).send('EVENT_RECEIVED');
+  } else {
+    res.sendStatus(404);
+  }
+});
 
-// ChatGPT API
-async function getChatGPTResponse(message, initialPrompt = INITIAL_PROMPT) {
-  const prompt = initialPrompt + message;
+app.get('/facebook', (req, res) => {
+  let VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
+  let mode = req.query['hub.mode'];
+  let token = req.query['hub.verify_token'];
+  let challenge = req.query['hub.challenge'];
+
+  console.log('Webhook GET request received.');
+
+  if (mode && token) {
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      console.log('Webhook verified.');
+      res.status(200).send(challenge);
+    } else {
+      console.log('Webhook verification failed.');
+      res.sendStatus(403);
+    }
+  }
+});
+
+app.get('/aitest', async (req, res) => {
   try {
-    const response = await openai.Completion.create({
-      engine: ENGINE,
-      prompt: prompt,
-      max_tokens: 60,
-      temperature: 0.8
+    const response = await getGpt3Response("The assistant should answer the following question: What's the weather like today?");
+    console.log('OpenAI response:', response);
+    res.send(response);
+  } catch (error) {
+    console.error('Error with OpenAI:', error);
+    res.status(500).send('Error with OpenAI');
+  }
+});
+
+async function handleMessage(senderId, receivedMessage) {
+  let messageText = receivedMessage.text;
+
+  if (messageText) {
+    console.log('Processing message:', messageText);
+    const response = await getGpt3Response("The assistant should answer the following question: " + messageText);
+    console.log('OpenAI response:', response);
+    await callSendAPI(senderId, response);
+  }
+}
+
+async function getGpt3Response(message) {
+  try {
+    console.log(OpenAIApi);
+    const gptResponse = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant.",
+        },
+        {
+          role: "user",
+          content: message,
+        },
+      ],
     });
 
-    return response.data.choices[0].text.trim();
+    return gptResponse.data['choices'][0]['message']['content'];
   } catch (error) {
-    console.error('Error calling ChatGPT:', error);
+    console.error('Error calling OpenAI API:', error);
     throw error;
   }
 }
 
-// Facebook API
-async function sendMessageToFb(recipientId, message) {
-  const payload = {
-    recipient: { id: recipientId },
-    message: { text: message },
+async function callSendAPI(senderId, response) {
+  let requestBody = {
+    recipient: {
+      id: senderId,
+    },
+    message: {
+      text: response,
+    },
   };
 
   try {
-    await axios.post(`${FACEBOOK_API_URL}?access_token=${process.env.FACEBOOK_ACCESS_TOKEN}`, payload);
-  } catch (error) {
-    console.error('Error sending message to Facebook:', error);
-    throw error;
+    await axios.post(`https://graph.facebook.com/v13.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`, requestBody);
+    console.log('Message sent to Facebook Messenger.');
+  } catch (err) {
+    console.error('Unable to send message:' + err);
   }
 }
 
-// Webhook setup for Facebook approval
-app.get('/webhook', (req, res) => {
-  if (req.query['hub.verify_token'] === process.env.FACEBOOK_VERIFY_TOKEN) {
-    res.send(req.query['hub.challenge']);
-  } else {
-    console.error('Wrong validation token');
-    res.send('Error, wrong validation token');
-  }
-});
-
-// Handling incoming messages
-app.post('/webhook', async (req, res) => {
-  const messagingEvents = req.body.entry[0]?.messaging;
-  if (!messagingEvents) {
-    console.error('No messaging events');
-    res.sendStatus(400);
-    return;
-  }
-  
-  for (let i = 0; i < messagingEvents.length; i++) {
-    const event = messagingEvents[i];
-    if (event.message && event.message.text) {
-      // Get response from ChatGPT
-      try {
-        const chatGptResponse = await getChatGPTResponse(event.message.text);
-        // Send response to Facebook Messenger
-        await sendMessageToFb(event.sender.id, chatGptResponse);
-      } catch (error) {
-        console.error('Error processing message:', error);
-        res.sendStatus(500);
-        return;
-      }
-    }
-  }
-  res.sendStatus(200);
-});
-
-// For testing the ChatGPT API separately
-app.get('/testChatGpt', async (req, res) => {
-  try {
-    const testMessage = 'Hello, how are you?';
-    const response = await getChatGPTResponse(testMessage);
-    res.send(response);
-  } catch (error) {
-    console.error('Error testing ChatGPT:', error);
-    res.sendStatus(500);
-  }
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+app.listen(3000, () => console.log('webhook server is listening, port 3000-**********************************************'));

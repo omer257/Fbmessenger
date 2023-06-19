@@ -14,7 +14,7 @@ app.use(bodyParser.json());
 openai.apiKey = process.env.OPENAI_KEY;
 
 // Facebook API URL
-const FACEBOOK_API_URL = `https://graph.facebook.com/v13.0/me/messages`;
+const FACEBOOK_API_URL = 'https://graph.facebook.com/v13.0/me/messages';
 
 // Engine and initial prompt
 const ENGINE = 'text-davinci-002'; // or other engine you'd like to use
@@ -104,4 +104,4 @@ app.get('/testChatGpt', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`);
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));

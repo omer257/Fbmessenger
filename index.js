@@ -14,7 +14,7 @@ app.use(bodyParser.json());
 openai.apiKey = process.env.OPENAI_KEY;
 
 // Facebook API URL
-const FACEBOOK_API_URL = `https://graph.facebook.com/v13.0/me/messages?access_token=${process.env.FACEBOOK_ACCESS_TOKEN}`;
+const FACEBOOK_API_URL = `https://graph.facebook.com/v13.0/me/messages`;
 
 // Engine and initial prompt
 const ENGINE = 'text-davinci-002'; // or other engine you'd like to use
@@ -47,7 +47,7 @@ async function sendMessageToFb(recipientId, message) {
   };
 
   try {
-    await axios.post(FACEBOOK_API_URL, payload);
+    await axios.post(`${FACEBOOK_API_URL}?access_token=${process.env.FACEBOOK_ACCESS_TOKEN}`, payload);
   } catch (error) {
     console.error('Error sending message to Facebook:', error);
     throw error;
@@ -104,4 +104,4 @@ app.get('/testChatGpt', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`

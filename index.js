@@ -86,7 +86,7 @@ async function getGpt3Response(message) {
   try {
     console.log(OpenAIApi);
     const gptResponse = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
+      model: "text-davinci-002",
       messages: [
         {
           role: "system",
